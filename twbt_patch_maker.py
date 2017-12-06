@@ -43,6 +43,7 @@ def disasm_iter(r2, start_addr, block_size=100):
         next_addr = hex(op['offset'] + op['size'])
         yield op
 
+
 def disasm(r2, start, num_ops):
     return r2.cmdj('pdj {} @ {}'.format(num_ops, start))
 
@@ -66,7 +67,6 @@ def make_patch(r2, table):
             break
     else:
         raise ValueError('render_main not found')
-    #print(hex(render_main))
     calls = filter_by_type(disasm(r2, render_main, 100), 'call')
     op = list(islice(calls, 2))[-1]
     render_map = op['jump']
@@ -74,7 +74,6 @@ def make_patch(r2, table):
     results['p_dwarfmode_render'] = (hex(op['offset']), op['size'])
 
     render_advmode_addr = find_render(r2, table, 'viewscreen_dungeonmodest')
-    print(hex(render_advmode_addr))
 
     num_render_map_calls = 4
     p_advmode_render = []
@@ -127,7 +126,6 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    #parser.add_argument('-a', '--arg', type=str, default='default', help='help')
     parser.add_argument('df_exe')
     parser.add_argument('symbols_xml')
 
