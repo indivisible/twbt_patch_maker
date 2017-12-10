@@ -125,6 +125,22 @@ def find_render_lower_levels(r2, results):
     raise ValueError('failed to find p_render_lower_levels')
 
 
+def check_render_lower_levels(r2, addr, known_ops=['push r15', 'movsx r15d, si']):
+    ops = disasm(r2, addr, len(known_ops))
+    opcodes = [op['opcode'] for op in ops]
+    if opcodes != known_ops:
+        print('Unkown sequence at p_render_lower_levels ({}):'.format(addr))
+        print('Expected:')
+        for op in known_ops:
+            print('  {}'.format(op))
+        print('Got:')
+        for op in opcodes:
+            print('  {}'.format(op))
+
+        raise ValueError('Unknown sequence at p_render_lower_levels')
+    return True
+
+
 def main():
     import argparse
 
@@ -142,6 +158,7 @@ def main():
     results = make_patch(r2, table)
     find_render_lower_levels(r2, results)
     print(results)
+    check_render_lower_levels(r2, results['p_render_lower_levels'])
 
     return 0
 
