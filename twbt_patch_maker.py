@@ -132,6 +132,9 @@ def main():
     args = parser.parse_args()
 
     table = get_symbol_table(args.df_exe, args.symbols_xml)
+    if not table.get('os-type') == 'linux':
+        raise RuntimeError('Only linux binaries are supported for now')
+
     r2 = r2pipe.open(args.df_exe)
     results = make_patch(r2, table)
     find_render_lower_levels(r2, results)
