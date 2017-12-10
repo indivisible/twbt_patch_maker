@@ -91,7 +91,12 @@ def make_patch(r2, table):
         if len(p_advmode_render) >= num_render_map_calls:
             break
 
-    results['p_advmode_render'] = p_advmode_render
+    sizes = []
+    for addr in p_advmode_render:
+        ops = disasm(r2, addr, 3)
+        sizes.append('+'.join(str(op['size']) for op in ops))
+
+    results['p_advmode_render'] = list(zip(p_advmode_render, sizes))
     results['A_RENDER_UPDOWN'] = hex(render_updown)
 
     return results
