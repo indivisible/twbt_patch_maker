@@ -107,14 +107,12 @@ def find_render_lower_levels(r2, results):
             break
     else:
         raise ValueError('failed to find p_render_lower_levels')
-    print(hex(addr))
     for op in disasm(r2, addr, 5):
         if 'jmp' in op['type']:
             addr = op['jump']
             break
     else:
         raise ValueError('failed to find p_render_lower_levels')
-    print(hex(addr))
     for op in filter_by_type(disasm(r2, addr, 30), 'call'):
         results['p_render_lower_levels'] = hex(op['jump'])
         return op['jump']
