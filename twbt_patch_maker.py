@@ -38,36 +38,33 @@ class TWBTPatchMaker:
             if hash_tag.get('value') == hash:
                 return table
 
-
     def get_vtable(self, name):
-        return self.symbols.find('vtable-address[@name="{}"]'.format(name)).get('value')
-
+        return self.symbols.find(
+                'vtable-address[@name="{}"]'.format(name)
+                ).get('value')
 
     def disasm_iter(self, start_addr, block_size=100):
         buf = []
         next_addr = start_addr
         while True:
             if not buf:
-                buf += self.r2.cmdj('pdj {} @ {}'.format(block_size, next_addr))
+                buf += self.r2.cmdj(
+                        'pdj {} @ {}'.format(block_size, next_addr))
             op = buf.pop(0)
             next_addr = hex(op['offset'] + op['size'])
             yield op
 
-
     def disasm(self, start, num_ops):
         return self.r2.cmdj('pdj {} @ {}'.format(num_ops, start))
-
 
     @staticmethod
     def filter_by_type(ops, op_type):
         return filter(lambda op: op['type'] == op_type, ops)
 
-
     def find_render(self, vt_name):
         addr = '{} + 16'.format(self.get_vtable(vt_name))
         render_addr = self.r2.cmdj('pxqj 64 @ {}'.format(addr))[0]
         return render_addr
-
 
     def make_patch(self):
         self.results = {}
@@ -90,7 +87,9 @@ class TWBTPatchMaker:
         p_advmode_render = []
         render_updown = None
         last_jump = None
-        for op in self.filter_by_type(self.disasm_iter(render_advmode_addr), 'call'):
+        for op in self.filter_by_type(
+                self.disasm_iter(render_advmode_addr),
+                'call'):
             if op['jump'] == render_map:
                 p_advmode_render.append(hex(op['offset']))
             if last_jump == render_map:
@@ -114,7 +113,6 @@ class TWBTPatchMaker:
 
         return self.results
 
-
     def find_render_lower_levels(self):
         for match in self.r2.cmdj('/xj 00000030'):
             # looking for a 5 byte test instruction
@@ -136,7 +134,6 @@ class TWBTPatchMaker:
             return op['jump']
 
         raise ValueError('failed to find p_render_lower_levels')
-
 
     def check_render_lower_levels(self, known_ops=['push r15', 'movsx r15d, si']):
         addr = self.results['p_render_lower_levels']
@@ -161,7 +158,8 @@ class TWBTPatchMaker:
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('df_exe')
     parser.add_argument('symbols_xml')
 
