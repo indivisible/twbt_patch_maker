@@ -7,6 +7,14 @@ from itertools import islice
 import r2pipe
 
 
+render_lower_levels_patches = {
+    'linux': {
+        'before': ['push r15', 'movsx r15d, si'],
+        'after': [0x41, 0xc6, 0x00, 0x00, 0xC3]
+        }
+    }
+
+
 def md5(path, block_size=2**20):
     hash = hashlib.md5()
     with open(path, 'rb') as f:
@@ -23,7 +31,8 @@ class TWBTPatchMaker:
         self.df_path = df_path
         self.symbols_path = symbols_path
         self.symbols = self.get_symbol_table()
-        if not self.symbols.get('os-type') == 'linux':
+        self.df_platform = self.symbols.get('os-type')
+        if self.df_platform != 'linux':
             raise RuntimeError('Only linux binaries are supported for now')
         self.r2 = r2pipe.open(self.df_path)
         self.results = {}
@@ -130,17 +139,20 @@ class TWBTPatchMaker:
         else:
             raise ValueError('failed to find p_render_lower_levels')
         for op in self.filter_by_type(self.disasm(addr, 30), 'call'):
-            self.results['p_render_lower_levels'] = hex(op['jump'])
+            patch = render_lower_levels_patches[self.df_platform]['after']
+            self.results['p_render_lower_levels'] = (hex(op['jump']), patch)
             return op['jump']
 
         raise ValueError('failed to find p_render_lower_levels')
 
-    def check_render_lower_levels(self, known_ops=['push r15', 'movsx r15d, si']):
-        addr = self.results['p_render_lower_levels']
+    def check_render_lower_levels(self):
+        addr = self.results['p_render_lower_levels'][0]
+        known_ops = render_lower_levels_patches[self.df_platform]['before']
         ops = self.disasm(addr, len(known_ops))
         opcodes = [op['opcode'] for op in ops]
         if opcodes != known_ops:
-            print('Unkown sequence at p_render_lower_levels ({}):'.format(addr))
+            print(
+                'Unkown sequence at p_render_lower_levels ({}):'.format(addr))
             print('Expected:')
             for op in known_ops:
                 print('  {}'.format(op))
@@ -153,6 +165,51 @@ class TWBTPatchMaker:
 
     def check_patch(self):
         self.check_render_lower_levels()
+
+    def print_patch(self, indent=' '*8):
+        results = self.results.copy()
+
+        def maybe_print(key, fmt, multi=None):
+            if key in results:
+                value = results[key]
+                if multi:
+                    sep, multi_fmt = multi
+                    value = sep.join(multi_fmt.format(i) for i in value)
+                print(indent + fmt.format(key=key, value=value, indent=indent))
+                del results[key]
+
+        for name in ['A_LOAD_MULTI_PDIM', 'A_RENDER_MAP', 'A_RENDER_UPDOWN']:
+            maybe_print(name, '#define {key:18} {value}')
+
+        if 'p_display' not in results:
+            print(indent + '#define NO_DISPLAY_PATCH')
+
+        print()
+
+        for name in ['p_display', 'p_dwarfmode_render']:
+            maybe_print(
+                    name,
+                    'static patchdef {key} = {{ {value[0]}, {value[1]} }};\n')
+
+        maybe_print(
+            'p_advmode_render',
+            'static patchdef {key} = {{\n    {indent}{value}\n{indent}}};\n',
+            (', ', '{{ {0[0]}, {0[1]} }}'))
+
+        key = 'p_render_lower_levels'
+        if key in results:
+            addr, patch_bytes = results[key]
+            patch_len = len(patch_bytes)
+            patch = ', '.join('0x{:02x}'.format(i) for i in patch_bytes)
+            print(indent + 'static patchdef {} = {{'.format(key))
+            print(indent + '    {}, {}, true, {{ {} }}'.format(
+                addr,
+                patch_len,
+                patch))
+            print(indent + '};\n')
+            del results[key]
+
+        assert not results, 'Unkown fields in results!'
 
 
 def main():
@@ -167,8 +224,8 @@ def main():
 
     patcher = TWBTPatchMaker(args.df_exe, args.symbols_xml)
 
-    results = patcher.make_patch()
-    print(results)
+    patcher.make_patch()
+    patcher.print_patch()
     patcher.check_patch()
 
     return 0
