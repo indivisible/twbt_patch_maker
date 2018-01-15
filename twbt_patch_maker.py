@@ -195,7 +195,7 @@ class TWBTPatchMaker:
 
         maybe_print(
             'p_advmode_render',
-            'static patchdef {key} = {{\n    {indent}{value}\n{indent}}};\n',
+            'static patchdef {key}[] = {{\n    {indent}{value}\n{indent}}};\n',
             (', ', '{{ {0[0]}, {0[1]} }}'))
 
         key = 'p_render_lower_levels'
