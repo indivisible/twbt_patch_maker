@@ -33,7 +33,9 @@ class TWBTPatchMaker:
         self.symbols = self.get_symbol_table()
         self.df_platform = self.symbols.get('os-type')
         if self.df_platform != 'linux':
-            raise RuntimeError('Only linux binaries are supported for now')
+            raise RuntimeError(
+                'Only linux binaries are supported for now (got {!r})'.format(
+                    self.df_platform))
         self.r2 = r2pipe.open(self.df_path)
         self.results = {}
 
