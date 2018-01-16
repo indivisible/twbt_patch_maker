@@ -39,9 +39,10 @@ def md5(path, block_size=2**20):
 
 
 class TWBTPatchMaker:
-    def __init__(self, df_path, symbols_path):
+    def __init__(self, df_path, symbols_path, verbose=False):
         self.df_path = df_path
         self.symbols_path = symbols_path
+        self.verbose = verbose
         self.r2 = r2pipe.open(self.df_path)
         self.symbols = self.get_symbol_table()
         self.df_platform = self.symbols.get('os-type')
@@ -218,7 +219,8 @@ class TWBTPatchMaker:
         other_calls = 0
 
         def report(msg):
-            print('{} 0x{:x} {}'.format(msg, op['offset'], op['opcode']))
+            if self.verbose:
+                print('{} 0x{:x} {}'.format(msg, op['offset'], op['opcode']))
 
         for num, op in enumerate(self.disasm_iter(start_addr)):
             if num >= 1000:
@@ -355,12 +357,13 @@ def main():
 
     parser = argparse.ArgumentParser(
             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('df_exe')
     parser.add_argument('symbols_xml')
 
     args = parser.parse_args()
 
-    patcher = TWBTPatchMaker(args.df_exe, args.symbols_xml)
+    patcher = TWBTPatchMaker(args.df_exe, args.symbols_xml, args.verbose)
 
     patcher.make_patch()
     patcher.print_patch()
