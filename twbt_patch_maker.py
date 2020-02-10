@@ -38,6 +38,10 @@ def md5(path, block_size=2**20):
     return hash.hexdigest()
 
 
+def ops_to_str(ops):
+    return '\n'.join(f'0x{op["offset"]:0x} {op["disasm"]}' for op in ops)
+
+
 class TWBTPatchMaker:
     def __init__(self, df_path, symbols_path, verbose=False):
         self.df_path = df_path
@@ -53,7 +57,13 @@ class TWBTPatchMaker:
         info = self.r2.cmdj('iIj')
         # windows uses a timestamp header
         if info['class'] == 'PE32+':
-            value = self.r2.cmd('ik image_file_header.TimeDateStamp')
+            headers = self.r2.cmdj('ihj')
+            for header in headers:
+                if header['name'] == 'TimeDateStamp':
+                    value = header['comment']
+                    break
+            else:
+                raise ValueError("can't fine exe TimeDateStamp")
             tag = 'binary-timestamp'
         else:
             value = md5(self.df_path)
@@ -141,9 +151,12 @@ class TWBTPatchMaker:
         sizes = []
         for addr in p_advmode_render:
             ops = self.disasm(addr, 3)
-            if self.df_platform == 'windows':
-                ops = ops[:2]
-            assert ops[-1]['type'] == 'call'
+            # FIXME: we should detect and handle old windows releases
+            # if self.df_platform == 'windows':
+            #     ops = ops[:2]
+            if ops[-1]['type'] != 'call':
+                msg = f'Unexpected op @ {addr}:\n{ops_to_str(ops)}'
+                raise ValueError(msg)
             sizes.append('+'.join(str(op['size']) for op in ops))
 
         self.results['p_advmode_render'] = list(zip(p_advmode_render, sizes))
@@ -229,14 +242,14 @@ class TWBTPatchMaker:
                             start_addr))
             if 'call' not in op['type']:
                 continue
-            opcode = op['opcode']
-            if 'SDL_SemPost' in opcode:
+            disasm = op['disasm']
+            if 'SDL_SemPost' in disasm:
                 if other_calls:
                     sempost_calls = 0
                 report('sempost')
                 sempost_calls += 1
                 other_calls = 0
-            elif 'SDL_GetTicks' in opcode:
+            elif 'SDL_GetTicks' in disasm:
                 report('getticks -- reset')
                 sempost_calls = 0
                 other_calls = 0
